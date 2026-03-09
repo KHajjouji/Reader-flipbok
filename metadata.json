@@ -1,0 +1,5 @@
+{
+  "name": "Audiobook Reader",
+  "description": "A flipping book reader with TTS audio playback and word highlighting.",
+  "requestFramePermissions": []
+}
