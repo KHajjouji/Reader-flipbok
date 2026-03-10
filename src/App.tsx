@@ -1,76 +1,90 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, Pause, Square, Volume2, FileAudio, ChevronLeft, ChevronRight, BookOpen, Globe, Settings, Move } from 'lucide-react';
+import { Play, Pause, Square, Volume2, FileAudio, ChevronLeft, ChevronRight, BookOpen, Globe, Settings, Move, Plus, Trash2, Image as ImageIcon, Type, LayoutTemplate } from 'lucide-react';
 
-// --- Types for Book Format ---
+// --- Types for Multi-Language Book Format ---
+
+type MultiLangString = Record<string, string>;
 
 type TextOverlay = {
   id: string;
-  content: string;
+  content: MultiLangString;
   position: { top: number, left: number, width: number }; // Percentages
   style?: React.CSSProperties;
 };
 
 type PageDef = 
-  | { type: 'text', content: string }
-  | { type: 'image', url: string, caption?: string }
+  | { type: 'text', content: MultiLangString }
+  | { type: 'image', url: string, caption?: MultiLangString }
   | { type: 'blank' };
 
 type SpreadDef = 
-  | { type: 'split', left: PageDef, right: PageDef }
-  | { type: 'full', backgroundImage: string, textOverlays: TextOverlay[] };
+  | { id: string, type: 'split', left: PageDef, right: PageDef }
+  | { id: string, type: 'full', backgroundImage: string, textOverlays: TextOverlay[] };
 
 type BookFormat = {
   title: string;
+  languages: { code: string, label: string }[];
   spreads: SpreadDef[];
 };
 
-// --- Sample Book Data ---
+// --- Sample Initial Book Data ---
 
-const SAMPLE_BOOK: BookFormat = {
+const INITIAL_BOOK: BookFormat = {
   title: "Alice's Adventures",
+  languages: [
+    { code: 'en', label: 'English' },
+    { code: 'es', label: 'Español' },
+    { code: 'fr', label: 'Français' }
+  ],
   spreads: [
     {
+      id: "spread-1",
       type: 'split',
       left: {
         type: 'text',
-        content: "Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once or twice she had peeped into the book her sister was reading, but it had no pictures or conversations in it, 'and what is the use of a book,' thought Alice 'without pictures or conversations?'\n\nSo she was considering in her own mind (as well as she could, for the hot day made her feel very sleepy and stupid), whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies, when suddenly a White Rabbit with pink eyes ran close by her."
+        content: {
+          en: "Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once or twice she had peeped into the book her sister was reading, but it had no pictures or conversations in it, 'and what is the use of a book,' thought Alice 'without pictures or conversations?'",
+          es: "Alicia empezaba a cansarse mucho de estar sentada junto a su hermana en la orilla, y de no tener nada que hacer: una o dos veces se había asomado al libro que su hermana estaba leyendo, pero no tenía dibujos ni diálogos, 'y de qué sirve un libro', pensó Alicia, 'sin dibujos ni diálogos?'",
+          fr: "Alice commençait à être très fatiguée de s'asseoir à côté de sa sœur sur la berge, et de n'avoir rien à faire : une ou deux fois elle avait jeté un coup d'œil dans le livre que lisait sa sœur, mais il n'y avait ni images ni conversations, 'et à quoi sert un livre,' pensa Alice 'sans images ni conversations ?'"
+        }
       },
       right: {
         type: 'image',
         url: "https://picsum.photos/seed/alice-rabbit/600/800",
-        caption: "The White Rabbit with pink eyes"
+        caption: {
+          en: "The White Rabbit with pink eyes",
+          es: "El Conejo Blanco de ojos rosados",
+          fr: "Le Lapin Blanc aux yeux roses"
+        }
       }
     },
     {
+      id: "spread-2",
       type: 'full',
       backgroundImage: "https://picsum.photos/seed/alice-falling/1200/800",
       textOverlays: [
         {
           id: "overlay-1",
-          content: "In another moment down went Alice after it, never once considering how in the world she was to get out again.",
+          content: {
+            en: "In another moment down went Alice after it, never once considering how in the world she was to get out again.",
+            es: "En otro momento, Alicia bajó tras él, sin considerar ni una sola vez cómo diablos iba a salir de nuevo.",
+            fr: "L'instant d'après, Alice descendit à sa suite, sans jamais se demander comment diable elle allait en ressortir."
+          },
           position: { top: 15, left: 10, width: 35 },
           style: { color: "white", fontSize: "1.6rem", fontWeight: "bold", textShadow: "2px 2px 8px rgba(0,0,0,0.9)", textAlign: "center" }
         },
         {
           id: "overlay-2",
-          content: "The rabbit-hole went straight on like a tunnel for some way, and then dipped suddenly down, so suddenly that Alice had not a moment to think about stopping herself before she found herself falling down a very deep well.",
+          content: {
+            en: "The rabbit-hole went straight on like a tunnel for some way, and then dipped suddenly down, so suddenly that Alice had not a moment to think about stopping herself before she found herself falling down a very deep well.",
+            es: "La madriguera del conejo seguía recta como un túnel por un trecho, y luego se hundía repentinamente, tan de repente que Alicia no tuvo un momento para pensar en detenerse antes de encontrarse cayendo por un pozo muy profundo.",
+            fr: "Le terrier du lapin continuait tout droit comme un tunnel pendant un certain temps, puis plongeait soudainement, si soudainement qu'Alice n'eut pas un instant pour penser à s'arrêter avant de se retrouver à tomber dans un puits très profond."
+          },
           position: { top: 60, left: 55, width: 35 },
           style: { color: "white", fontSize: "1.4rem", fontWeight: "bold", textShadow: "2px 2px 8px rgba(0,0,0,0.9)", textAlign: "center" }
         }
       ]
-    },
-    {
-      type: 'split',
-      left: {
-        type: 'image',
-        url: "https://picsum.photos/seed/alice-jar/600/800",
-        caption: "ORANGE MARMALADE"
-      },
-      right: {
-        type: 'text',
-        content: "Either the well was very deep, or she fell very slowly, for she had plenty of time as she went down to look about her and to wonder what was going to happen next. First, she tried to look down and make out what she was coming to, but it was too dark to see anything; then she looked at the sides of the well, and noticed that they were filled with cupboards and book-shelves; here and there she saw maps and pictures hung upon pegs.\n\nShe took down a jar from one of the shelves as she passed; it was labelled 'ORANGE MARMALADE', but to her great disappointment it was empty: she did not like to drop the jar for fear of killing somebody, so managed to put it into one of the cupboards as she fell past it."
-      }
     }
   ]
 };
@@ -93,18 +107,48 @@ type ParsedPageDef =
 type ParsedOverlay = TextOverlay & { words: ParsedWord[] };
 
 type ParsedSpread = 
-  | { type: 'split', left: ParsedPageDef, right: ParsedPageDef }
-  | { type: 'full', backgroundImage: string, overlays: ParsedOverlay[] };
+  | { id: string, type: 'split', left: ParsedPageDef, right: ParsedPageDef }
+  | { id: string, type: 'full', backgroundImage: string, overlays: ParsedOverlay[] };
 
 
 export default function App() {
-  // --- Parsing Logic ---
+  // --- State ---
+  const [book, setBook] = useState<BookFormat>(INITIAL_BOOK);
+  const [currentLang, setCurrentLang] = useState('en');
+  
+  const [activeWordId, setActiveWordId] = useState(-1);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentSpread, setCurrentSpread] = useState(0);
+  const [direction, setDirection] = useState(1); // 1 for next, -1 for prev (for animation)
+  
+  const [audioSource, setAudioSource] = useState<'tts' | 'file'>('tts');
+  const [audioUrl, setAudioUrl] = useState('');
+  
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>('');
+  
+  const [isAdmin, setIsAdmin] = useState(false);
+  
+  const [dragging, setDragging] = useState<{
+    overlayId: string;
+    startX: number;
+    startY: number;
+    startTop: number;
+    startLeft: number;
+  } | null>(null);
+
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const bookRef = useRef<HTMLDivElement>(null);
+
+  // --- Parsing Logic (Re-runs when book or language changes) ---
   const { parsedSpreads, allWords } = useMemo(() => {
     const spreads: ParsedSpread[] = [];
     const words: ParsedWord[] = [];
     let wordId = 0;
 
-    const parseText = (text: string, spreadIndex: number): ParsedWord[] => {
+    const parseText = (multiLangText: MultiLangString | undefined, spreadIndex: number): ParsedWord[] => {
+      if (!multiLangText) return [];
+      const text = multiLangText[currentLang] || multiLangText['en'] || '';
       const parsed: ParsedWord[] = [];
       const regex = /\S+/g;
       let match;
@@ -125,14 +169,15 @@ export default function App() {
       return parsed;
     };
 
-    SAMPLE_BOOK.spreads.forEach((spread, spreadIndex) => {
+    book.spreads.forEach((spread, spreadIndex) => {
       if (spread.type === 'split') {
         const parsePage = (page: PageDef): ParsedPageDef => {
           if (page.type === 'text') return { type: 'text', words: parseText(page.content, spreadIndex) };
-          if (page.type === 'image') return { type: 'image', url: page.url, caption: page.caption };
+          if (page.type === 'image') return { type: 'image', url: page.url, caption: page.caption?.[currentLang] || page.caption?.['en'] };
           return { type: 'blank' };
         };
         spreads.push({
+          id: spread.id,
           type: 'split',
           left: parsePage(spread.left),
           right: parsePage(spread.right)
@@ -143,6 +188,7 @@ export default function App() {
           words: parseText(overlay.content, spreadIndex)
         }));
         spreads.push({
+          id: spread.id,
           type: 'full',
           backgroundImage: spread.backgroundImage,
           overlays
@@ -151,43 +197,8 @@ export default function App() {
     });
 
     return { parsedSpreads: spreads, allWords: words };
-  }, []);
+  }, [book, currentLang]);
 
-  // --- State ---
-  const [activeWordId, setActiveWordId] = useState(-1);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentSpread, setCurrentSpread] = useState(0);
-  const [audioSource, setAudioSource] = useState<'tts' | 'file'>('tts');
-  const [audioUrl, setAudioUrl] = useState('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
-  
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>('');
-  
-  const [isAdmin, setIsAdmin] = useState(false);
-  
-  // Store overlay positions separately so dragging doesn't re-parse the book
-  const [overlayPositions, setOverlayPositions] = useState<Record<string, {top: number, left: number}>>(() => {
-    const pos: Record<string, {top: number, left: number}> = {};
-    SAMPLE_BOOK.spreads.forEach(spread => {
-      if (spread.type === 'full') {
-        spread.textOverlays.forEach(o => {
-          pos[o.id] = { top: o.position.top, left: o.position.left };
-        });
-      }
-    });
-    return pos;
-  });
-
-  const [dragging, setDragging] = useState<{
-    overlayId: string;
-    startX: number;
-    startY: number;
-    startTop: number;
-    startLeft: number;
-  } | null>(null);
-
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const bookRef = useRef<HTMLDivElement>(null);
   const totalSpreads = parsedSpreads.length;
 
   // --- Effects ---
@@ -195,9 +206,10 @@ export default function App() {
     const updateVoices = () => {
       const availableVoices = window.speechSynthesis.getVoices();
       setVoices(availableVoices);
-      if (availableVoices.length > 0 && !selectedVoiceURI) {
-        const defaultVoice = availableVoices.find(v => v.lang.startsWith('en')) || availableVoices[0];
-        setSelectedVoiceURI(defaultVoice.voiceURI);
+      if (availableVoices.length > 0) {
+        // Try to find a voice matching the current language
+        const langVoice = availableVoices.find(v => v.lang.startsWith(currentLang)) || availableVoices.find(v => v.lang.startsWith('en')) || availableVoices[0];
+        setSelectedVoiceURI(langVoice.voiceURI);
       }
     };
 
@@ -208,11 +220,11 @@ export default function App() {
       window.speechSynthesis.onvoiceschanged = null;
       window.speechSynthesis.cancel();
     };
-  }, [selectedVoiceURI]);
+  }, [currentLang]);
 
-  // Dragging logic
+  // Dragging logic for Admin Mode
   useEffect(() => {
-    if (!dragging) return;
+    if (!dragging || !isAdmin) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!bookRef.current) return;
@@ -224,13 +236,24 @@ export default function App() {
       const deltaLeftPercent = (deltaX / rect.width) * 100;
       const deltaTopPercent = (deltaY / rect.height) * 100;
 
-      setOverlayPositions(prev => ({
-        ...prev,
-        [dragging.overlayId]: {
-          top: Math.max(0, Math.min(90, dragging.startTop + deltaTopPercent)),
-          left: Math.max(0, Math.min(90, dragging.startLeft + deltaLeftPercent))
+      const newTop = Math.max(0, Math.min(90, dragging.startTop + deltaTopPercent));
+      const newLeft = Math.max(0, Math.min(90, dragging.startLeft + deltaLeftPercent));
+
+      // Update the book state directly
+      setBook(prev => {
+        const newSpreads = [...prev.spreads];
+        const spread = newSpreads[currentSpread];
+        if (spread.type === 'full') {
+          const overlayIndex = spread.textOverlays.findIndex(o => o.id === dragging.overlayId);
+          if (overlayIndex !== -1) {
+            spread.textOverlays[overlayIndex] = {
+              ...spread.textOverlays[overlayIndex],
+              position: { ...spread.textOverlays[overlayIndex].position, top: newTop, left: newLeft }
+            };
+          }
         }
-      }));
+        return { ...prev, spreads: newSpreads };
+      });
     };
 
     const handleMouseUp = () => setDragging(null);
@@ -241,7 +264,7 @@ export default function App() {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [dragging]);
+  }, [dragging, isAdmin, currentSpread]);
 
   // --- Audio Controls ---
   const startTTS = () => {
@@ -283,8 +306,9 @@ export default function App() {
         if (mapping) {
           setActiveWordId(mapping.id);
           const word = allWords.find(w => w.id === mapping.id);
-          if (word) {
-            setCurrentSpread(prev => prev !== word.spreadIndex ? word.spreadIndex : prev);
+          if (word && word.spreadIndex !== currentSpread) {
+            setDirection(word.spreadIndex > currentSpread ? 1 : -1);
+            setCurrentSpread(word.spreadIndex);
           }
         }
       }
@@ -344,14 +368,65 @@ export default function App() {
     setActiveWordId(estimatedWordIndex);
     
     const word = allWords.find(w => w.id === estimatedWordIndex);
-    if (word) {
-      setCurrentSpread(prev => prev !== word.spreadIndex ? word.spreadIndex : prev);
+    if (word && word.spreadIndex !== currentSpread) {
+      setDirection(word.spreadIndex > currentSpread ? 1 : -1);
+      setCurrentSpread(word.spreadIndex);
     }
   };
 
   const handleSpreadChange = (newSpread: number) => {
     if (isPlaying) handleStop();
+    setDirection(newSpread > currentSpread ? 1 : -1);
     setCurrentSpread(newSpread);
+  };
+
+  // --- Admin Helpers ---
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, callback: (url: string) => void) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          callback(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const updateCurrentSpread = (updater: (spread: SpreadDef) => SpreadDef) => {
+    setBook(prev => {
+      const newSpreads = [...prev.spreads];
+      newSpreads[currentSpread] = updater(newSpreads[currentSpread]);
+      return { ...prev, spreads: newSpreads };
+    });
+  };
+
+  const addSpread = () => {
+    setBook(prev => ({
+      ...prev,
+      spreads: [
+        ...prev.spreads,
+        {
+          id: `spread-${Date.now()}`,
+          type: 'full',
+          backgroundImage: 'https://picsum.photos/seed/new/1200/800',
+          textOverlays: []
+        }
+      ]
+    }));
+    setDirection(1);
+    setCurrentSpread(book.spreads.length);
+  };
+
+  const deleteSpread = () => {
+    if (book.spreads.length <= 1) return;
+    setBook(prev => {
+      const newSpreads = [...prev.spreads];
+      newSpreads.splice(currentSpread, 1);
+      return { ...prev, spreads: newSpreads };
+    });
+    setCurrentSpread(Math.max(0, currentSpread - 1));
   };
 
   // --- Render Helpers ---
@@ -408,13 +483,13 @@ export default function App() {
     if (spread.type === 'split') {
       return (
         <>
-          <div className="w-1/2 h-full relative z-10 border-r border-gray-200/50 overflow-hidden">
+          <div className="w-1/2 h-full relative z-10 border-r border-gray-200/50 overflow-hidden bg-[#fdfbf7]">
             {renderPage(spread.left)}
             <div className="absolute bottom-2 sm:bottom-4 left-0 right-0 text-center text-[10px] sm:text-sm text-gray-400 font-serif drop-shadow-md z-20">
               {index * 2 + 1}
             </div>
           </div>
-          <div className="w-1/2 h-full relative z-10 overflow-hidden">
+          <div className="w-1/2 h-full relative z-10 overflow-hidden bg-[#fdfbf7]">
             {renderPage(spread.right)}
             <div className="absolute bottom-2 sm:bottom-4 left-0 right-0 text-center text-[10px] sm:text-sm text-gray-400 font-serif drop-shadow-md z-20">
               {index * 2 + 2}
@@ -426,19 +501,18 @@ export default function App() {
 
     if (spread.type === 'full') {
       return (
-        <div className="w-full h-full relative z-10 overflow-hidden">
+        <div className="w-full h-full relative z-10 overflow-hidden bg-[#fdfbf7]">
           <img src={spread.backgroundImage} alt="Background" className="absolute inset-0 w-full h-full object-cover" referrerPolicy="no-referrer" />
           <div className="absolute inset-0 bg-black/10 pointer-events-none" />
           
           {spread.overlays.map((overlay) => {
-            const pos = overlayPositions[overlay.id] || overlay.position;
             return (
               <div 
                 key={overlay.id} 
                 className={`absolute transition-shadow ${isAdmin ? 'ring-2 ring-blue-500 ring-dashed bg-blue-500/20 cursor-move hover:bg-blue-500/30' : ''}`}
                 style={{ 
-                  top: `${pos.top}%`, 
-                  left: `${pos.left}%`, 
+                  top: `${overlay.position.top}%`, 
+                  left: `${overlay.position.left}%`, 
                   width: `${overlay.position.width}%`,
                   ...overlay.style 
                 }}
@@ -449,8 +523,8 @@ export default function App() {
                     overlayId: overlay.id,
                     startX: e.clientX,
                     startY: e.clientY,
-                    startTop: pos.top,
-                    startLeft: pos.left
+                    startTop: overlay.position.top,
+                    startLeft: overlay.position.left
                   });
                 }}
               >
@@ -477,13 +551,32 @@ export default function App() {
     return null;
   };
 
+  // --- Page Flip Animation Variants ---
+  const flipVariants = {
+    enter: (dir: number) => ({
+      rotateY: dir > 0 ? 90 : -90,
+      opacity: 0,
+      transformOrigin: dir > 0 ? 'right' : 'left',
+    }),
+    center: {
+      rotateY: 0,
+      opacity: 1,
+      transformOrigin: 'center',
+    },
+    exit: (dir: number) => ({
+      rotateY: dir < 0 ? 90 : -90,
+      opacity: 0,
+      transformOrigin: dir < 0 ? 'right' : 'left',
+    })
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-stone-100 font-sans">
+    <div className="min-h-screen flex flex-col bg-stone-100 font-sans overflow-hidden">
       {/* Header Controls */}
       <div className="bg-white border-b px-4 sm:px-6 py-4 flex flex-col lg:flex-row items-center justify-between shadow-sm z-30 gap-4">
         <div className="flex items-center gap-3">
           <BookOpen className="w-6 h-6 text-indigo-600" />
-          <h1 className="text-xl font-semibold text-gray-800">{SAMPLE_BOOK.title}</h1>
+          <h1 className="text-xl font-semibold text-gray-800">{book.title}</h1>
         </div>
         
         <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
@@ -500,6 +593,23 @@ export default function App() {
               <Settings className="w-4 h-4" />
               {isAdmin ? 'Exit Admin' : 'Admin Mode'}
             </button>
+          </div>
+
+          {/* Language Selector for Reader */}
+          <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-md px-3 py-1.5">
+            <Globe className="w-4 h-4 text-indigo-600" />
+            <select
+              value={currentLang}
+              onChange={(e) => {
+                setCurrentLang(e.target.value);
+                if (isPlaying) handleStop();
+              }}
+              className="text-xs sm:text-sm bg-transparent focus:outline-none w-24 truncate text-indigo-900 font-medium"
+            >
+              {book.languages.map(l => (
+                <option key={l.code} value={l.code}>{l.label}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex bg-gray-100 p-1 rounded-lg">
@@ -524,23 +634,20 @@ export default function App() {
           </div>
 
           {audioSource === 'tts' && voices.length > 0 && (
-            <div className="flex items-center gap-2 bg-gray-50 border rounded-md px-3 py-1.5">
-              <Globe className="w-4 h-4 text-gray-500" />
-              <select
-                value={selectedVoiceURI}
-                onChange={(e) => {
-                  setSelectedVoiceURI(e.target.value);
-                  if (isPlaying) handleStop();
-                }}
-                className="text-xs sm:text-sm bg-transparent focus:outline-none w-32 sm:w-48 truncate text-gray-700 font-medium"
-              >
-                {voices.map(v => (
-                  <option key={v.voiceURI} value={v.voiceURI}>
-                    {v.name} ({v.lang})
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={selectedVoiceURI}
+              onChange={(e) => {
+                setSelectedVoiceURI(e.target.value);
+                if (isPlaying) handleStop();
+              }}
+              className="text-xs sm:text-sm border rounded-md px-2 py-1.5 w-32 sm:w-48 focus:ring-2 focus:ring-indigo-500 outline-none bg-white truncate"
+            >
+              {voices.map(v => (
+                <option key={v.voiceURI} value={v.voiceURI}>
+                  {v.name} ({v.lang})
+                </option>
+              ))}
+            </select>
           )}
 
           {audioSource === 'file' && (
@@ -571,69 +678,311 @@ export default function App() {
         </div>
       </div>
 
-      {/* Admin Warning Bar */}
-      <AnimatePresence>
-        {isAdmin && (
-          <motion.div 
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="bg-blue-50 border-b border-blue-200 px-6 py-2 text-sm text-blue-800 flex justify-center items-center gap-2 overflow-hidden"
-          >
-            <Move className="w-4 h-4" />
-            <strong>Admin Mode Active:</strong> You can click and drag the text blocks on full-spread pages to reposition them. Audio playback is disabled.
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div className="flex-1 flex overflow-hidden">
+        {/* Main Book Area */}
+        <div className="flex-1 flex flex-col relative">
+          <div className="flex-1 flex items-center justify-center p-2 sm:p-8 overflow-hidden perspective-[2000px]">
+            <div 
+              ref={bookRef}
+              className="relative w-full max-w-5xl aspect-[1.5/1] sm:aspect-[2/1.3] flex shadow-2xl rounded-lg bg-[#4a3b32] p-1 sm:p-2 select-none"
+            >
+              <div className="flex w-full h-full bg-[#fdfbf7] rounded shadow-inner relative overflow-hidden">
+                {/* Spine Shadow */}
+                <div className="absolute left-1/2 top-0 bottom-0 w-8 sm:w-12 -ml-4 sm:-ml-6 bg-gradient-to-r from-black/5 via-black/10 to-black/5 z-20 pointer-events-none" />
+                <div className="absolute left-1/2 top-0 bottom-0 w-[1px] bg-black/10 z-20 pointer-events-none" />
+                
+                {/* 3D Flip Animation */}
+                <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+                  <motion.div
+                    key={`spread-${currentSpread}`}
+                    custom={direction}
+                    variants={flipVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ duration: 0.6, type: 'spring', bounce: 0.1 }}
+                    className="w-full h-full flex absolute inset-0"
+                    style={{ transformStyle: 'preserve-3d' }}
+                  >
+                    {renderSpread(currentSpread)}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
 
-      {/* Book Area */}
-      <div className="flex-1 flex items-center justify-center bg-stone-200 p-2 sm:p-8 overflow-hidden">
-        <div 
-          ref={bookRef}
-          className="relative w-full max-w-5xl aspect-[1.5/1] sm:aspect-[2/1.3] flex shadow-2xl rounded-lg bg-[#4a3b32] p-1 sm:p-2 select-none"
-        >
-          <div className="flex w-full h-full bg-[#fdfbf7] rounded shadow-inner relative overflow-hidden">
-            {/* Spine Shadow */}
-            <div className="absolute left-1/2 top-0 bottom-0 w-8 sm:w-12 -ml-4 sm:-ml-6 bg-gradient-to-r from-black/5 via-black/10 to-black/5 z-20 pointer-events-none" />
-            <div className="absolute left-1/2 top-0 bottom-0 w-[1px] bg-black/10 z-20 pointer-events-none" />
+          {/* Footer Controls */}
+          <div className="bg-white/80 backdrop-blur border-t px-6 py-4 flex items-center justify-center gap-6 sm:gap-8 shadow-sm z-30">
+            <button 
+              onClick={() => handleSpreadChange(Math.max(0, currentSpread - 1))}
+              disabled={currentSpread === 0}
+              className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+            </button>
             
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={`spread-${currentSpread}`}
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.02 }}
-                transition={{ duration: 0.3 }}
-                className="w-full h-full flex absolute inset-0"
-              >
-                {renderSpread(currentSpread)}
-              </motion.div>
-            </AnimatePresence>
+            <span className="text-xs sm:text-sm font-medium text-gray-500">
+              Spread {currentSpread + 1} of {totalSpreads}
+            </span>
+
+            <button 
+              onClick={() => handleSpreadChange(Math.min(totalSpreads - 1, currentSpread + 1))}
+              disabled={currentSpread === totalSpreads - 1}
+              className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
+            >
+              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Footer Controls */}
-      <div className="bg-white border-t px-6 py-4 flex items-center justify-center gap-6 sm:gap-8 shadow-sm z-30 relative">
-        <button 
-          onClick={() => handleSpreadChange(Math.max(0, currentSpread - 1))}
-          disabled={currentSpread === 0}
-          className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
-        </button>
-        
-        <span className="text-xs sm:text-sm font-medium text-gray-500">
-          Spread {currentSpread + 1} of {totalSpreads}
-        </span>
+        {/* Admin Sidebar */}
+        <AnimatePresence>
+          {isAdmin && (
+            <motion.div 
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 380, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              className="bg-white border-l shadow-2xl overflow-y-auto flex flex-col z-40"
+            >
+              <div className="p-4 border-b bg-gray-50 flex justify-between items-center sticky top-0 z-10">
+                <h2 className="font-bold text-gray-800 flex items-center gap-2">
+                  <Settings className="w-5 h-5" /> Book Editor
+                </h2>
+                <div className="flex gap-2">
+                  <button onClick={addSpread} className="p-1.5 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200" title="Add Spread">
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  <button onClick={deleteSpread} disabled={book.spreads.length <= 1} className="p-1.5 bg-red-100 text-red-700 rounded hover:bg-red-200 disabled:opacity-50" title="Delete Spread">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
 
-        <button 
-          onClick={() => handleSpreadChange(Math.min(totalSpreads - 1, currentSpread + 1))}
-          disabled={currentSpread === totalSpreads - 1}
-          className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
-        >
-          <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
-        </button>
+              <div className="p-4 space-y-6">
+                {/* Current Spread Editor */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Spread {currentSpread + 1} Settings</h3>
+                  
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Layout Style</label>
+                    <select 
+                      value={book.spreads[currentSpread].type}
+                      onChange={(e) => {
+                        const type = e.target.value as 'split' | 'full';
+                        updateCurrentSpread(s => {
+                          if (type === 'full') return { id: s.id, type: 'full', backgroundImage: 'https://picsum.photos/seed/new/1200/800', textOverlays: [] };
+                          return { id: s.id, type: 'split', left: { type: 'blank' }, right: { type: 'blank' } };
+                        });
+                      }}
+                      className="w-full text-sm border rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                      <option value="split">Split (Two Pages)</option>
+                      <option value="full">Full (Children's Book Style)</option>
+                    </select>
+                  </div>
+
+                  {book.spreads[currentSpread].type === 'full' && (
+                    <div className="space-y-4 border-t pt-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Background Image</label>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            value={(book.spreads[currentSpread] as any).backgroundImage}
+                            onChange={(e) => updateCurrentSpread(s => ({ ...s, backgroundImage: e.target.value }))}
+                            className="flex-1 text-sm border rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            placeholder="Image URL"
+                          />
+                          <label className="cursor-pointer bg-gray-100 p-2 rounded-md hover:bg-gray-200 border">
+                            <ImageIcon className="w-4 h-4 text-gray-600" />
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, url => updateCurrentSpread(s => ({ ...s, backgroundImage: url })))} />
+                          </label>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="block text-xs font-medium text-gray-700">Text Overlays</label>
+                          <button 
+                            onClick={() => updateCurrentSpread(s => {
+                              if (s.type !== 'full') return s;
+                              return {
+                                ...s,
+                                textOverlays: [...s.textOverlays, {
+                                  id: `overlay-${Date.now()}`,
+                                  content: { en: "New text" },
+                                  position: { top: 50, left: 50, width: 30 },
+                                  style: { color: "white", fontSize: "1.5rem", fontWeight: "bold", textShadow: "2px 2px 4px rgba(0,0,0,0.8)" }
+                                }]
+                              };
+                            })}
+                            className="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded hover:bg-indigo-100 flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" /> Add Text
+                          </button>
+                        </div>
+
+                        <div className="space-y-3">
+                          {(book.spreads[currentSpread] as any).textOverlays.map((overlay: TextOverlay, idx: number) => (
+                            <div key={overlay.id} className="border rounded-md p-3 bg-gray-50 relative">
+                              <button 
+                                onClick={() => updateCurrentSpread(s => {
+                                  if (s.type !== 'full') return s;
+                                  const newOverlays = [...s.textOverlays];
+                                  newOverlays.splice(idx, 1);
+                                  return { ...s, textOverlays: newOverlays };
+                                })}
+                                className="absolute top-2 right-2 text-red-400 hover:text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                              <div className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1"><Type className="w-3 h-3"/> Overlay {idx + 1}</div>
+                              
+                              {book.languages.map(lang => (
+                                <div key={lang.code} className="mb-2">
+                                  <label className="block text-[10px] text-gray-500 uppercase">{lang.label}</label>
+                                  <textarea 
+                                    value={overlay.content[lang.code] || ''}
+                                    onChange={(e) => updateCurrentSpread(s => {
+                                      if (s.type !== 'full') return s;
+                                      const newOverlays = [...s.textOverlays];
+                                      newOverlays[idx] = { ...newOverlays[idx], content: { ...newOverlays[idx].content, [lang.code]: e.target.value } };
+                                      return { ...s, textOverlays: newOverlays };
+                                    })}
+                                    className="w-full text-sm border rounded px-2 py-1 min-h-[60px]"
+                                    placeholder={`Text in ${lang.label}`}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {book.spreads[currentSpread].type === 'split' && (
+                    <div className="space-y-6 border-t pt-4">
+                      {/* Left Page Editor */}
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-medium text-gray-800 flex items-center gap-2"><LayoutTemplate className="w-4 h-4"/> Left Page</h4>
+                        <select 
+                          value={(book.spreads[currentSpread] as any).left.type}
+                          onChange={(e) => updateCurrentSpread(s => {
+                            if (s.type !== 'split') return s;
+                            const type = e.target.value as 'text' | 'image' | 'blank';
+                            let newPage: PageDef = { type: 'blank' };
+                            if (type === 'text') newPage = { type: 'text', content: { en: "New text" } };
+                            if (type === 'image') newPage = { type: 'image', url: "https://picsum.photos/seed/new/600/800" };
+                            return { ...s, left: newPage };
+                          })}
+                          className="w-full text-sm border rounded-md px-3 py-2"
+                        >
+                          <option value="text">Text</option>
+                          <option value="image">Image</option>
+                          <option value="blank">Blank</option>
+                        </select>
+
+                        {(book.spreads[currentSpread] as any).left.type === 'text' && book.languages.map(lang => (
+                          <div key={lang.code}>
+                            <label className="block text-[10px] text-gray-500 uppercase">{lang.label}</label>
+                            <textarea 
+                              value={(book.spreads[currentSpread] as any).left.content[lang.code] || ''}
+                              onChange={(e) => updateCurrentSpread(s => {
+                                if (s.type !== 'split' || s.left.type !== 'text') return s;
+                                return { ...s, left: { ...s.left, content: { ...s.left.content, [lang.code]: e.target.value } } };
+                              })}
+                              className="w-full text-sm border rounded px-2 py-1 min-h-[80px]"
+                            />
+                          </div>
+                        ))}
+
+                        {(book.spreads[currentSpread] as any).left.type === 'image' && (
+                          <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              value={(book.spreads[currentSpread] as any).left.url}
+                              onChange={(e) => updateCurrentSpread(s => {
+                                if (s.type !== 'split' || s.left.type !== 'image') return s;
+                                return { ...s, left: { ...s.left, url: e.target.value } };
+                              })}
+                              className="flex-1 text-sm border rounded-md px-3 py-2"
+                              placeholder="Image URL"
+                            />
+                            <label className="cursor-pointer bg-gray-100 p-2 rounded-md hover:bg-gray-200 border">
+                              <ImageIcon className="w-4 h-4 text-gray-600" />
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, url => updateCurrentSpread(s => {
+                                if (s.type !== 'split' || s.left.type !== 'image') return s;
+                                return { ...s, left: { ...s.left, url } };
+                              }))} />
+                            </label>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right Page Editor */}
+                      <div className="space-y-3 border-t pt-4">
+                        <h4 className="text-sm font-medium text-gray-800 flex items-center gap-2"><LayoutTemplate className="w-4 h-4"/> Right Page</h4>
+                        <select 
+                          value={(book.spreads[currentSpread] as any).right.type}
+                          onChange={(e) => updateCurrentSpread(s => {
+                            if (s.type !== 'split') return s;
+                            const type = e.target.value as 'text' | 'image' | 'blank';
+                            let newPage: PageDef = { type: 'blank' };
+                            if (type === 'text') newPage = { type: 'text', content: { en: "New text" } };
+                            if (type === 'image') newPage = { type: 'image', url: "https://picsum.photos/seed/new/600/800" };
+                            return { ...s, right: newPage };
+                          })}
+                          className="w-full text-sm border rounded-md px-3 py-2"
+                        >
+                          <option value="text">Text</option>
+                          <option value="image">Image</option>
+                          <option value="blank">Blank</option>
+                        </select>
+
+                        {(book.spreads[currentSpread] as any).right.type === 'text' && book.languages.map(lang => (
+                          <div key={lang.code}>
+                            <label className="block text-[10px] text-gray-500 uppercase">{lang.label}</label>
+                            <textarea 
+                              value={(book.spreads[currentSpread] as any).right.content[lang.code] || ''}
+                              onChange={(e) => updateCurrentSpread(s => {
+                                if (s.type !== 'split' || s.right.type !== 'text') return s;
+                                return { ...s, right: { ...s.right, content: { ...s.right.content, [lang.code]: e.target.value } } };
+                              })}
+                              className="w-full text-sm border rounded px-2 py-1 min-h-[80px]"
+                            />
+                          </div>
+                        ))}
+
+                        {(book.spreads[currentSpread] as any).right.type === 'image' && (
+                          <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              value={(book.spreads[currentSpread] as any).right.url}
+                              onChange={(e) => updateCurrentSpread(s => {
+                                if (s.type !== 'split' || s.right.type !== 'image') return s;
+                                return { ...s, right: { ...s.right, url: e.target.value } };
+                              })}
+                              className="flex-1 text-sm border rounded-md px-3 py-2"
+                              placeholder="Image URL"
+                            />
+                            <label className="cursor-pointer bg-gray-100 p-2 rounded-md hover:bg-gray-200 border">
+                              <ImageIcon className="w-4 h-4 text-gray-600" />
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, url => updateCurrentSpread(s => {
+                                if (s.type !== 'split' || s.right.type !== 'image') return s;
+                                return { ...s, right: { ...s.right, url } };
+                              }))} />
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {audioSource === 'file' && audioUrl && (
